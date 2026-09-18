@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monochrome Vision — grayscale conversion dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eeede9;
+    --surface: #ffffff;
+    --surface-2: #f4f2ee;
+    --border: #dcd9d2;
+    --text: #17171a;
+    --text-dim: #6c6b66;
+    --accent: #cf4520;
+    --accent-ink: #fff8f4;
+    --accent-soft: rgba(207,69,32,0.10);
+    --shadow-1: rgba(35,25,15,0.08);
+    --shadow-2: rgba(35,25,15,0.14);
+    --r: #c33c2e;
+    --g: #2f7d4f;
+    --b: #2b62b5;
+    --radius: 12px;
+    --sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15140f;
+      --surface: #1d1c17;
+      --surface-2: #22211b;
+      --border: #38352c;
+      --text: #f1efe9;
+      --text-dim: #a6a297;
+      --accent: #ff6a3d;
+      --accent-ink: #1a0d07;
+      --accent-soft: rgba(255,106,61,0.14);
+      --shadow-1: rgba(0,0,0,0.35);
+      --shadow-2: rgba(0,0,0,0.55);
+      --r: #e2685a;
+      --g: #63c98a;
+      --b: #6fa1e6;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15140f;
+    --surface: #1d1c17;
+    --surface-2: #22211b;
+    --border: #38352c;
+    --text: #f1efe9;
+    --text-dim: #a6a297;
+    --accent: #ff6a3d;
+    --accent-ink: #1a0d07;
+    --accent-soft: rgba(255,106,61,0.14);
+    --shadow-1: rgba(0,0,0,0.35);
+    --shadow-2: rgba(0,0,0,0.55);
+    --r: #e2685a;
+    --g: #63c98a;
+    --b: #6fa1e6;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .shell { max-width: 1180px; margin: 0 auto; padding: 28px 20px 64px; }
+
+  /* ---------- hero ---------- */
+  .hero {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 30px 30px 26px;
+    margin-bottom: 26px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .hero-text h1 {
+    margin: 0 0 8px;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .hero-text p {
+    margin: 0;
+    max-width: 46ch;
+    color: var(--text-dim);
+    font-size: 15px;
+  }
+  .hero-diagram {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .chip {
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 15px;
+    color: #fff;
+  }
+  .chip-r { background: var(--r); }
+  .chip-g { background: var(--g); }
+  .chip-b { background: var(--b); }
+  .chip-y {
+    background: linear-gradient(135deg, #8a8a86, #3d3c38);
+    width: 48px;
+    height: 48px;
+  }
+  .hero-diagram .stack { display: flex; flex-direction: column; gap: 6px; }
+  .hero-diagram .arrow { color: var(--text-dim); font-size: 20px; }
+
+  /* ---------- layout ---------- */
+  .layout {
+    display: grid;
+    grid-template-columns: 252px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 880px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  .rail {
+    position: sticky;
+    top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  @media (max-width: 880px) { .rail { position: static; } }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 18px 20px;
+  }
+  .panel h2 {
+    margin: 0 0 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-dim);
+  }
+  .objectives {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 13.5px;
+  }
+  .objectives li { margin-bottom: 10px; }
+  .objectives li:last-child { margin-bottom: 0; }
+  .objectives strong { display: block; font-size: 14px; }
+
+  .radio {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 10px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    border: 1px solid transparent;
+  }
+  .radio:hover { background: var(--surface-2); }
+  .radio input { accent-color: var(--accent); width: 15px; height: 15px; }
+  .radio.active { background: var(--accent-soft); border-color: var(--accent); }
+  .method-note {
+    margin: 10px 2px 0;
+    font-size: 12.5px;
+    color: var(--text-dim);
+    line-height: 1.55;
+  }
+
+  /* ---------- main content ---------- */
+  .content { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+
+  .dropzone {
+    background: var(--surface);
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 34px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .dropzone.drag { border-color: var(--accent); background: var(--accent-soft); }
+  .dropzone .dz-icon { font-size: 30px; margin-bottom: 10px; }
+  .dropzone h3 { margin: 0 0 4px; font-size: 16px; }
+  .dropzone p { margin: 0; color: var(--text-dim); font-size: 13.5px; }
+  .dropzone input { display: none; }
+
+  .dropzone.compact {
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    text-align: left;
+    flex-wrap: wrap;
+  }
+  .dropzone.compact .file-meta { font-size: 13.5px; }
+  .dropzone.compact .file-meta strong { display: block; font-size: 14px; }
+  .dropzone.compact .change-link {
+    font-size: 13px;
+    color: var(--accent);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .error-msg {
+    color: var(--r);
+    font-size: 13.5px;
+    padding: 10px 14px;
+    border: 1px solid var(--r);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--r) 10%, transparent);
+  }
+  [hidden] { display: none !important; }
+
+  .pipeline {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--text-dim);
+  }
+  .pipeline span.step {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 12px;
+    color: var(--text);
+  }
+
+  /* ---------- reveal / before-after slider ---------- */
+  .reveal-card { display: flex; flex-direction: column; gap: 10px; }
+  .reveal {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 2px var(--shadow-1), 0 22px 44px -24px var(--shadow-2);
+    --pos: 50%;
+  }
+  .reveal canvas { display: block; width: 100%; height: auto; }
+  #origCanvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    clip-path: inset(0 calc(100% - var(--pos)) 0 0);
+  }
+  .reveal-tag {
+    position: absolute;
+    top: 14px;
+    padding: 5px 11px;
+    border-radius: 999px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: .01em;
+    backdrop-filter: blur(6px);
+    background: color-mix(in srgb, var(--surface) 60%, transparent);
+    border: 1px solid var(--border);
+    color: var(--text);
+    pointer-events: none;
+  }
+  .reveal-tag.left { left: 14px; }
+  .reveal-tag.right { right: 14px; }
+  .reveal-divider {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 2px;
+    background: var(--accent);
+    left: var(--pos);
+    transform: translateX(-50%);
+    pointer-events: none;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.25);
+  }
+  .reveal-handle {
+    position: absolute;
+    top: 50%;
+    left: var(--pos);
+    transform: translate(-50%, -50%);
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 2px solid var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 16px -4px var(--shadow-2);
+    pointer-events: none;
+    font-size: 14px;
+    color: var(--accent);
+  }
+  input.reveal-range {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: ew-resize;
+    -webkit-appearance: none;
+    appearance: none;
+    z-index: 5;
+  }
+  .reveal-hint {
+    text-align: center;
+    font-size: 12.5px;
+    color: var(--text-dim);
+    transition: opacity .35s ease;
+  }
+  .reveal-hint.hide { opacity: 0; }
+  .reveal-caps {
+    text-align: center;
+    font-size: 12px;
+    font-family: var(--mono);
+    color: var(--text-dim);
+  }
+
+  .formula-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+  }
+  .formula-card h3 { margin: 0 0 12px; font-size: 14px; color: var(--text-dim); font-weight: 600; }
+  .formula-box {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--accent);
+  }
+  .formula-card p { margin: 0; font-size: 13.5px; color: var(--text-dim); }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  @media (max-width: 720px) { .metrics-grid { grid-template-columns: 1fr 1fr; } }
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    text-align: center;
+  }
+  .metric-title { font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
+  .metric-value { font-family: var(--mono); font-size: 20px; font-weight: 600; }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }
+  .info-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+  }
+  .info-card h4 { margin: 0 0 8px; font-size: 14px; }
+  .info-card ul { margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--text-dim); }
+  .info-card ul li { margin-bottom: 4px; }
+
+  table.mem-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    font-size: 13.5px;
+  }
+  table.mem-table th, table.mem-table td {
+    text-align: left;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  table.mem-table th { color: var(--text-dim); font-weight: 600; font-size: 12.5px; background: var(--surface-2); }
+  table.mem-table tr:last-child td { border-bottom: none; }
+  table.mem-table td.num { font-family: var(--mono); }
+
+  .download-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  select.fmt {
+    font-family: var(--sans);
+    font-size: 13.5px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+  }
+  button.save-btn {
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent);
+    color: var(--accent-ink);
+    cursor: pointer;
+  }
+  button.save-btn:disabled { opacity: 0.5; cursor: default; }
+  button.save-btn:not(:disabled):hover { filter: brightness(1.06); }
+  .save-status { font-size: 13px; color: var(--text-dim); }
+
+  .footnote {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 12.5px;
+    padding-top: 14px;
+    font-family: var(--mono);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="hero">
+    <div class="hero-text">
+      <h1>Monochrome Vision</h1>
+      <p>Every photograph carries three channels of color. Upload one and watch it collapse into a single channel of light and shadow — with the arithmetic shown at every step.</p>
+    </div>
+    <div class="hero-diagram" aria-hidden="true">
+      <div class="stack">
+        <span class="chip chip-r">R</span>
+        <span class="chip chip-g">G</span>
+        <span class="chip chip-b">B</span>
+      </div>
+      <span class="arrow">→</span>
+      <span class="chip chip-y">Y</span>
+    </div>
+  </div>
+
+  <div class="layout">
+    <aside class="rail">
+      <div class="panel">
+        <h2>Why collapse channels</h2>
+        <ol class="objectives">
+          <li><strong>Cut complexity</strong>Three channels become one.</li>
+          <li><strong>Shrink storage</strong>The raw array drops by two-thirds.</li>
+          <li><strong>Speed up pipelines</strong>Less data for every downstream pass.</li>
+          <li><strong>Foreground structure</strong>Edges and texture stand out once color stops competing for attention.</li>
+        </ol>
+      </div>
+
+      <div class="panel">
+        <h2>Conversion method</h2>
+        <label class="radio active" id="radioWeighted">
+          <input type="radio" name="method" value="weighted" checked>
+          <span>Weighted luminosity</span>
+        </label>
+        <label class="radio" id="radioAverage">
+          <input type="radio" name="method" value="average">
+          <span>Simple average</span>
+        </label>
+        <p class="method-note" id="methodNote"></p>
+      </div>
+    </aside>
+
+    <main class="content">
+
+      <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload an image">
+        <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp">
+        <div id="dzEmpty">
+          <div class="dz-icon">📤</div>
+          <h3>Upload an image</h3>
+          <p>Drop a JPG, PNG, or WebP here, or click to browse. Nothing leaves your browser.</p>
+        </div>
+        <div id="dzCompact" hidden>
+          <div class="file-meta">
+            <strong id="fileNameLabel">image.jpg</strong>
+            <span id="fileDimsLabel"></span>
+          </div>
+          <span class="change-link">Upload a different image</span>
+        </div>
+      </div>
+
+      <p class="error-msg" id="errorMsg" hidden></p>
+
+      <div class="pipeline" id="pipelineHint">
+        <span class="step">RGB image</span>
+        <span>→</span>
+        <span class="step">read each pixel</span>
+        <span>→</span>
+        <span class="step">apply formula</span>
+        <span>→</span>
+        <span class="step">single channel</span>
+        <span>→</span>
+        <span class="step">compare &amp; download</span>
+      </div>
+
+      <div id="results" hidden>
+
+        <!-- Merged Slider View -->
+        <div class="reveal-card">
+          <div class="reveal" id="reveal">
+            <canvas id="grayCanvas"></canvas>
+            <canvas id="origCanvas"></canvas>
+            <span class="reveal-tag left">RGB · 3ch</span>
+            <span class="reveal-tag right">Gray · 1ch</span>
+            <div class="reveal-divider"></div>
+            <div class="reveal-handle" aria-hidden="true">↔</div>
+            <input type="range" id="revealRange" class="reveal-range" min="0" max="100" value="50" aria-label="Drag to compare the original and monochrome image">
+          </div>
+          <p class="reveal-hint" id="revealHint">Drag to compare — or click anywhere on the image</p>
+          <div class="reveal-caps" id="dimsCap"></div>
+        </div>
+
+        <div class="formula-card">
+          <h3>Mathematical conversion</h3>
+          <div class="formula-box" id="formulaBox"></div>
+          <p id="formulaExplain"></p>
+        </div>
+
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-title">Processing time</div>
+            <div class="metric-value" id="metricTime">–</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-title">RGB memory</div>
+            <div class="metric-value" id="metricRgb">–</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-title">Monochrome memory</div>
+            <div class="metric-value" id="metricGray">–</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-title">Memory reduction</div>
+            <div class="metric-value" id="metricReduction">–</div>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <div class="info-card">
+            <h4>RGB representation</h4>
+            <ul>
+              <li>Red channel</li>
+              <li>Green channel</li>
+              <li>Blue channel</li>
+            </ul>
+            <p style="margin-top:10px;font-size:13.5px;color:var(--text-dim);">Three intensity values per pixel.</p>
+          </div>
+          <div class="info-card">
+            <h4>Monochrome representation</h4>
+            <ul>
+              <li>Brightness / intensity</li>
+            </ul>
+            <p style="margin-top:10px;font-size:13.5px;color:var(--text-dim);">One intensity value per pixel.</p>
+          </div>
+        </div>
+
+        <table class="mem-table">
+          <thead>
+            <tr><th>Image type</th><th>Channels</th><th>Raw memory</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>RGB</td><td class="num">3</td><td class="num" id="memRgbRow">–</td></tr>
+            <tr><td>Monochrome</td><td class="num">1</td><td class="num" id="memGrayRow">–</td></tr>
+          </tbody>
+        </table>
+
+        <div class="download-row">
+          <select class="fmt" id="fmtSelect">
+            <option value="jpeg">JPEG (.jpg)</option>
+            <option value="png">PNG (.png)</option>
+          </select>
+          <button class="save-btn" id="saveBtn">Download monochrome image</button>
+          <span class="save-status" id="saveStatus"></span>
+        </div>
+
+      </div>
+
+      <div class="footnote">Runs entirely in your browser — no image ever leaves this device. No machine learning, just the arithmetic above.</div>
+    </main>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var MAX_DIM = 4096;
+  var lastFileName = "image";
+  var lastGrayReady = false;
+  var userInteracted = false;
+
+  var dropzone = document.getElementById('dropzone');
+  var fileInput = document.getElementById('fileInput');
+  var dzEmpty = document.getElementById('dzEmpty');
+  var dzCompact = document.getElementById('dzCompact');
+  var fileNameLabel = document.getElementById('fileNameLabel');
+  var fileDimsLabel = document.getElementById('fileDimsLabel');
+  var errorMsg = document.getElementById('errorMsg');
+  var pipelineHint = document.getElementById('pipelineHint');
+  var results = document.getElementById('results');
+
+  var origCanvas = document.getElementById('origCanvas');
+  var grayCanvas = document.getElementById('grayCanvas');
+  var dimsCap = document.getElementById('dimsCap');
+
+  var revealEl = document.getElementById('reveal');
+  var revealRange = document.getElementById('revealRange');
+  var revealHint = document.getElementById('revealHint');
+
+  var formulaBox = document.getElementById('formulaBox');
+  var formulaExplain = document.getElementById('formulaExplain');
+  var methodNote = document.getElementById('methodNote');
+  var radioWeighted = document.getElementById('radioWeighted');
+  var radioAverage = document.getElementById('radioAverage');
+
+  var metricTime = document.getElementById('metricTime');
+  var metricRgb = document.getElementById('metricRgb');
+  var metricGray = document.getElementById('metricGray');
+  var metricReduction = document.getElementById('metricReduction');
+  var memRgbRow = document.getElementById('memRgbRow');
+  var memGrayRow = document.getElementById('memGrayRow');
+
+  var fmtSelect = document.getElementById('fmtSelect');
+  var saveBtn = document.getElementById('saveBtn');
+  var saveStatus = document.getElementById('saveStatus');
+
+  var FORMULAS = {
+    weighted: {
+      box: "Gray = 0.299·R + 0.587·G + 0.114·B",
+      explain: "Human vision is most sensitive to green light and least sensitive to blue, so this formula weights each channel by how strongly the eye perceives it. It's the same weighting used inside most computer-vision libraries' default grayscale conversion.",
+      note: "Perceptual weighting — matches how the human eye actually senses brightness."
+    },
+    average: {
+      box: "Gray = (R + G + B) / 3",
+      explain: "Every channel counts equally. It's simpler than the perceptual formula, but it can wash out sensitivity to green, so the result often looks flatter than it does to the human eye.",
+      note: "An unweighted blend — useful for comparing against the perceptual formula above."
+    }
+  };
+
+  var downloadsPromise = (function initDownloads() {
+    try {
+      if (window.claude && typeof window.claude.use === 'function') {
+        return window.claude.use('downloads')['catch'](function () { return null; });
+      }
+    } catch (e) { /* fall through */ }
+    return Promise.resolve(null);
+  })();
+
+  function browserDownload(blob, filename) {
+    try {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      saveStatus.textContent = "Downloaded.";
+    } catch (e) {
+      saveStatus.textContent = "Couldn't start the download.";
+    }
+  }
+
+  function currentMethod() {
+    return document.querySelector('input[name="method"]:checked').value;
+  }
+
+  function refreshMethodUI() {
+    var m = currentMethod();
+    radioWeighted.classList.toggle('active', m === 'weighted');
+    radioAverage.classList.toggle('active', m === 'average');
+    methodNote.textContent = FORMULAS[m].note;
+    formulaBox.textContent = FORMULAS[m].box;
+    formulaExplain.textContent = FORMULAS[m].explain;
+  }
+  refreshMethodUI();
+
+  function showError(msg) {
+    errorMsg.textContent = msg;
+    errorMsg.hidden = false;
+  }
+  function clearError() {
+    errorMsg.hidden = true;
+    errorMsg.textContent = "";
+  }
+
+  function fmtKB(kb) {
+    return kb >= 1024 ? (kb / 1024).toFixed(2) + " MB" : kb.toFixed(1) + " KB";
+  }
+
+  function toGrayscale(imageData, method) {
+    var data = imageData.data;
+    var len = data.length;
+    var out = new Uint8ClampedArray(len);
+    var i, r, g, b, v;
+    if (method === 'weighted') {
+      for (i = 0; i < len; i += 4) {
+        r = data[i]; g = data[i + 1]; b = data[i + 2];
+        v = (0.299 * r + 0.587 * g + 0.114 * b) | 0;
+        out[i] = v; out[i + 1] = v; out[i + 2] = v; out[i + 3] = data[i + 3];
+      }
+    } else {
+      for (i = 0; i < len; i += 4) {
+        r = data[i]; g = data[i + 1]; b = data[i + 2];
+        v = ((r + g + b) / 3) | 0;
+        out[i] = v; out[i + 1] = v; out[i + 2] = v; out[i + 3] = data[i + 3];
+      }
+    }
+    return new ImageData(out, imageData.width, imageData.height);
+  }
+
+  var state = { width: 0, height: 0, origW: 0, origH: 0, resized: false };
+  var octx = null, gctx = null;
+
+  function runConversion() {
+    if (!octx) return;
+    var imgData = octx.getImageData(0, 0, state.width, state.height);
+    var method = currentMethod();
+    var t0 = performance.now();
+    var grayData = toGrayscale(imgData, method);
+    var t1 = performance.now();
+    gctx.putImageData(grayData, 0, 0);
+    updateStats(t1 - t0);
+    refreshMethodUI();
+  }
+
+  function updateStats(ms) {
+    var w = state.width, h = state.height;
+    var rgbKB = (w * h * 3) / 1024;
+    var grayKB = (w * h * 1) / 1024;
+    var reduction = ((rgbKB - grayKB) / rgbKB) * 100;
+
+    metricTime.textContent = ms.toFixed(3) + " ms";
+    metricRgb.textContent = fmtKB(rgbKB);
+    metricGray.textContent = fmtKB(grayKB);
+    metricReduction.textContent = reduction.toFixed(1) + "%";
+    memRgbRow.textContent = fmtKB(rgbKB);
+    memGrayRow.textContent = fmtKB(grayKB);
+
+    var dimsText = w + " × " + h + " px" + (state.resized ? " (resized from " + state.origW + " × " + state.origH + ")" : "");
+    dimsCap.textContent = dimsText;
+    fileDimsLabel.textContent = dimsText;
+
+    lastGrayReady = true;
+    saveBtn.disabled = false;
+  }
+
+  function setPos(pos) {
+    pos = Math.max(0, Math.min(100, pos));
+    revealEl.style.setProperty('--pos', pos + '%');
+    revealRange.value = String(pos);
+  }
+
+  function hideHint() {
+    revealHint.classList.add('hide');
+  }
+
+  function processImage(img, filename) {
+    var w = img.naturalWidth, h = img.naturalHeight;
+    if (!w || !h) { showError("That file doesn't look like a readable image."); return; }
+
+    var scale = 1;
+    if (Math.max(w, h) > MAX_DIM) scale = MAX_DIM / Math.max(w, h);
+    var cw = Math.round(w * scale), ch = Math.round(h * scale);
+
+    state = { width: cw, height: ch, origW: w, origH: h, resized: scale < 1 };
+
+    origCanvas.width = cw; origCanvas.height = ch;
+    grayCanvas.width = cw; grayCanvas.height = ch;
+
+    octx = origCanvas.getContext('2d', { willReadFrequently: true });
+    gctx = grayCanvas.getContext('2d');
+    octx.drawImage(img, 0, 0, cw, ch);
+
+    lastFileName = (filename || "image").replace(/\.[a-z0-9]+$/i, "");
+    fileNameLabel.textContent = filename || "image";
+
+    dzEmpty.hidden = true;
+    dzCompact.hidden = false;
+    dropzone.classList.add('compact');
+    pipelineHint.hidden = true;
+    results.hidden = false;
+    saveStatus.textContent = "";
+
+    runConversion();
+    setPos(50);
+    revealHint.classList.remove('hide');
+    userInteracted = false;
+  }
+
+  function handleFile(file) {
+    clearError();
+    if (!file) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+      showError("Please upload a JPG, PNG, or WebP image.");
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var img = new Image();
+      img.onload = function () { processImage(img, file.name); };
+      img.onerror = function () { showError("Could not read that image."); };
+      img.src = e.target.result;
+    };
+    reader.onerror = function () { showError("Could not read that file."); };
+    reader.readAsDataURL(file);
+  }
+
+  dropzone.addEventListener('click', function () { fileInput.click(); });
+  dropzone.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+  });
+  fileInput.addEventListener('change', function (e) {
+    handleFile(e.target.files && e.target.files[0]);
+  });
+  ['dragover'].forEach(function (evt) {
+    dropzone.addEventListener(evt, function (e) {
+      e.preventDefault();
+      dropzone.classList.add('drag');
+    });
+  });
+  ['dragleave', 'drop'].forEach(function (evt) {
+    dropzone.addEventListener(evt, function (e) {
+      e.preventDefault();
+      dropzone.classList.remove('drag');
+    });
+  });
+  dropzone.addEventListener('drop', function (e) {
+    var file = e.dataTransfer.files && e.dataTransfer.files[0];
+    handleFile(file);
+  });
+
+  document.querySelectorAll('input[name="method"]').forEach(function (input) {
+    input.addEventListener('change', function () {
+      refreshMethodUI();
+      if (lastGrayReady) runConversion();
+    });
+  });
+  
+  revealRange.addEventListener('input', function () {
+    userInteracted = true;
+    hideHint();
+    setPos(parseFloat(revealRange.value));
+  });
+
+  function handleDownloadError(err) {
+    var code = err && err.code;
+    if (code === 'declined') { saveStatus.textContent = ""; return; }
+    if (code === 'rate_limited') { saveStatus.textContent = "Try again in a moment."; return; }
+    if (code === 'too_large') { saveStatus.textContent = "That file is too large to save here."; return; }
+    saveStatus.textContent = "Couldn't save the file in this view.";
+  }
+
+  saveBtn.addEventListener('click', function () {
+    if (!lastGrayReady) return;
+    var format = fmtSelect.value;
+    var mime = format === 'png' ? 'image/png' : 'image/jpeg';
+    var ext = format === 'png' ? 'png' : 'jpg';
+    saveStatus.textContent = "Preparing…";
+
+    grayCanvas.toBlob(function (blob) {
+      if (!blob) { saveStatus.textContent = "Could not prepare the file."; return; }
+      var filename = lastFileName + "_monochrome." + ext;
+
+      downloadsPromise.then(function (api) {
+        if (api) {
+          return api.save({ filename: filename, data: blob }).then(function (res) {
+            saveStatus.textContent = res.status === 'saved' ? "Saved." : "Sent.";
+          })['catch'](handleDownloadError);
+        }
+        browserDownload(blob, filename);
+      });
+    }, mime, format === 'jpeg' ? 0.92 : undefined);
+  });
+
+})();
+</script>
+</body>
+</html>
